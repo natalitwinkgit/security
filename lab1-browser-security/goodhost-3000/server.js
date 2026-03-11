@@ -18,6 +18,13 @@ app.use((req, res, next) => {
     res.setHeader("Content-Security-Policy", "default-src 'self';");
   }
 
+  if (config.mode === "csp-balanced") {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; img-src *; style-src *; script-src 'self' http://localhost:4000 http://localhost:6000;"
+    );
+  }
+
   next();
 });
 
