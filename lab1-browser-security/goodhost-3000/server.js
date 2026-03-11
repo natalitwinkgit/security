@@ -13,6 +13,14 @@ const version = fs.readFileSync(versionPath, "utf-8").trim();
 
 console.log(`[System] Starting ${config.appName} v${version}...`);
 
+app.use((req, res, next) => {
+  if (config.mode === "csp-strict") {
+    res.setHeader("Content-Security-Policy", "default-src 'self';");
+  }
+
+  next();
+});
+
 app.use(express.static("public"));
 
 const emails = [
