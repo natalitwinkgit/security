@@ -1,5 +1,5 @@
 {
   "appName": "SecureMail Pro",
   "version": "1.0.0",
-  "mode": "csp-strict"
+  "mode": "csp-balanced"
 }
