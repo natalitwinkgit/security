@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
 
@@ -12,6 +13,8 @@ const breachedScript = 'alert("CRITICAL: CDN Compromised! Stealing data...");\n'
 function readConfig() {
   return JSON.parse(fs.readFileSync(configPath, "utf-8"));
 }
+
+app.use(cors());
 
 app.get("/react-mock.js", (req, res) => {
   const config = readConfig();

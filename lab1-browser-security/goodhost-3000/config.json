@@ -1,6 +1,6 @@
 {
   "appName": "SecureMail Pro",
   "version": "1.0.0",
-  "mode": "mode-insecure",
+  "mode": "mode-sri-active",
   "reactMockSri": "sha256-Tn933QWBNzE3kV3dMqfNcjcmV6yEJDYxSzFpeZmAfA8="
 }
