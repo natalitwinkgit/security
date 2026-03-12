@@ -7,6 +7,7 @@ const app = express();
 
 const configPath = path.join(__dirname, "config.json");
 const versionPath = path.join(__dirname, "version.txt");
+const indexPath = path.join(__dirname, "public", "index.html");
 
 const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 const version = fs.readFileSync(versionPath, "utf-8").trim();
@@ -17,6 +18,20 @@ const balancedModes = new Set([
 ]);
 
 console.log(`[System] Starting ${config.appName} v${version}...`);
+
+function getReactMockScriptTag() {
+  if (config.mode === "mode-sri-active") {
+    return [
+      "<script",
+      '  src="http://localhost:6000/react-mock.js"',
+      `  integrity="${config.reactMockSri}"`,
+      '  crossorigin="anonymous">',
+      "</script>",
+    ].join("\n");
+  }
+
+  return '<script src="http://localhost:6000/react-mock.js"></script>';
+}
 
 app.use((req, res, next) => {
   if (config.mode === "csp-strict") {
@@ -33,7 +48,15 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static("public"));
+app.get(["/", "/index.html"], (req, res) => {
+  const html = fs
+    .readFileSync(indexPath, "utf-8")
+    .replace("{{reactMockScriptTag}}", getReactMockScriptTag());
+
+  res.type("html").send(html);
+});
+
+app.use(express.static("public", { index: false }));
 
 const emails = [
   {
