@@ -8,6 +8,10 @@ const app = express();
 const configPath = path.join(__dirname, "config.json");
 const versionPath = path.join(__dirname, "version.txt");
 const indexPath = path.join(__dirname, "public", "index.html");
+const trustedCdnOrigin = "http://localhost:7000";
+const reactMockUrl = `${trustedCdnOrigin}/react-mock.js`;
+const reactMockScriptPattern =
+  /<script\s+src="http:\/\/localhost:7000\/react-mock\.js"[\s\S]*?<\/script>/m;
 
 const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 const version = fs.readFileSync(versionPath, "utf-8").trim();
@@ -24,14 +28,14 @@ function getReactMockScriptTag() {
   if (config.mode === "mode-sri-active") {
     return [
       "<script",
-      '  src="http://localhost:6000/react-mock.js"',
+      `  src="${reactMockUrl}"`,
       `  integrity="${config.reactMockSri}"`,
       '  crossorigin="anonymous">',
       "</script>",
     ].join("\n");
   }
 
-  return '<script src="http://localhost:6000/react-mock.js"></script>';
+  return `<script src="${reactMockUrl}"></script>`;
 }
 
 app.use((req, res, next) => {
@@ -50,7 +54,7 @@ app.use((req, res, next) => {
   if (balancedModes.has(config.mode)) {
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; img-src *; style-src *; script-src 'self' http://localhost:4000 http://localhost:6000;"
+      "default-src 'self'; img-src *; style-src *; script-src 'self' http://localhost:4000 http://localhost:7000;"
     );
   }
 
@@ -60,7 +64,7 @@ app.use((req, res, next) => {
 app.get(["/", "/index.html"], (req, res) => {
   const html = fs
     .readFileSync(indexPath, "utf-8")
-    .replace("{{reactMockScriptTag}}", getReactMockScriptTag());
+    .replace(reactMockScriptPattern, getReactMockScriptTag());
 
   res.type("html").send(html);
 });
