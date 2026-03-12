@@ -10,6 +10,11 @@ const versionPath = path.join(__dirname, "version.txt");
 
 const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 const version = fs.readFileSync(versionPath, "utf-8").trim();
+const balancedModes = new Set([
+  "csp-balanced",
+  "mode-insecure",
+  "mode-sri-active",
+]);
 
 console.log(`[System] Starting ${config.appName} v${version}...`);
 
@@ -18,7 +23,7 @@ app.use((req, res, next) => {
     res.setHeader("Content-Security-Policy", "default-src 'self';");
   }
 
-  if (config.mode === "csp-balanced") {
+  if (balancedModes.has(config.mode)) {
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; img-src *; style-src *; script-src 'self' http://localhost:4000 http://localhost:6000;"
