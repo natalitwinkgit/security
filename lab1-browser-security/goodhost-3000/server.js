@@ -11,6 +11,7 @@ const indexPath = path.join(__dirname, "public", "index.html");
 
 const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 const version = fs.readFileSync(versionPath, "utf-8").trim();
+const allowAllCors = cors();
 const balancedModes = new Set([
   "csp-balanced",
   "mode-insecure",
@@ -32,6 +33,14 @@ function getReactMockScriptTag() {
 
   return '<script src="http://localhost:6000/react-mock.js"></script>';
 }
+
+app.use((req, res, next) => {
+  if (config.mode === "mode1") {
+    return allowAllCors(req, res, next);
+  }
+
+  next();
+});
 
 app.use((req, res, next) => {
   if (config.mode === "csp-strict") {

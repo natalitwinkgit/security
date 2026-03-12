@@ -9,12 +9,21 @@ const publicDir = path.join(__dirname, "public");
 const configPath = path.join(__dirname, "config.json");
 const reactMockPath = path.join(publicDir, "react-mock.js");
 const breachedScript = 'alert("CRITICAL: CDN Compromised! Stealing data...");\n';
+const allowAllCors = cors();
 
 function readConfig() {
   return JSON.parse(fs.readFileSync(configPath, "utf-8"));
 }
 
-app.use(cors());
+app.use((req, res, next) => {
+  const config = readConfig();
+
+  if (["mode1", "normal", "breach"].includes(config.mode)) {
+    return allowAllCors(req, res, next);
+  }
+
+  next();
+});
 
 app.get("/react-mock.js", (req, res) => {
   const config = readConfig();
