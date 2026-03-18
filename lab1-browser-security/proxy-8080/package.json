@@ -1,0 +1,13 @@
+{
+  "name": "proxy-8080",
+  "version": "1.0.0",
+  "description": "MitM proxy for Lab 5",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:breach": "node server.js --mode=breach"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
