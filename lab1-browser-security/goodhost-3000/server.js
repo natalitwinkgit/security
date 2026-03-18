@@ -22,7 +22,7 @@ const balancedModes = new Set([
   "mode-insecure",
   "mode-sri-active",
 ]);
-const sessionCookieAttributes = ["Path=/"];
+const sessionCookieAttributes = ["Path=/", "HttpOnly"];
 const users = {
   john: {
     username: "john",
