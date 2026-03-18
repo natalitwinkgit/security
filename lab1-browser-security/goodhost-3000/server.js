@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -21,8 +22,103 @@ const balancedModes = new Set([
   "mode-insecure",
   "mode-sri-active",
 ]);
+const sessionCookieAttributes = ["Path=/"];
+const users = {
+  john: {
+    username: "john",
+    displayName: "John Smith",
+    emails: [
+      {
+        id: 1,
+        sender: "alice@mail.com",
+        subject: "Welcome",
+        body: "Hello John, welcome to SecureMail!",
+      },
+      {
+        id: 2,
+        sender: "boss@company.com",
+        subject: "Meeting",
+        body: "Reminder: meeting at 10:00.",
+      },
+    ],
+  },
+  alice: {
+    username: "alice",
+    displayName: "Alice Johnson",
+    emails: [
+      {
+        id: 1,
+        sender: "hr@company.com",
+        subject: "Benefits Update",
+        body: "Alice, please review the updated benefits package.",
+      },
+      {
+        id: 2,
+        sender: "john@mail.com",
+        subject: "Coffee",
+        body: "Can we sync after lunch about the new project?",
+      },
+    ],
+  },
+};
+const sessions = new Map();
 
 console.log(`[System] Starting ${config.appName} v${version}...`);
+
+function parseCookies(cookieHeader = "") {
+  return cookieHeader
+    .split(";")
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .reduce((result, chunk) => {
+      const separatorIndex = chunk.indexOf("=");
+
+      if (separatorIndex === -1) {
+        return result;
+      }
+
+      const key = chunk.slice(0, separatorIndex);
+      const value = chunk.slice(separatorIndex + 1);
+      result[key] = decodeURIComponent(value);
+      return result;
+    }, {});
+}
+
+function buildSessionCookie(sessionId) {
+  return [`SessionID=${encodeURIComponent(sessionId)}`, ...sessionCookieAttributes].join(
+    "; "
+  );
+}
+
+function buildExpiredSessionCookie() {
+  return [
+    "SessionID=",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    "Max-Age=0",
+    ...sessionCookieAttributes,
+  ].join("; ");
+}
+
+function createSession(username) {
+  const sessionId = crypto.randomUUID();
+  sessions.set(sessionId, username);
+  return sessionId;
+}
+
+function getSession(req) {
+  const cookies = parseCookies(req.headers.cookie);
+  const sessionId = cookies.SessionID;
+  const username = sessionId ? sessions.get(sessionId) : null;
+
+  if (!sessionId || !username) {
+    return null;
+  }
+
+  return {
+    sessionId,
+    user: users[username],
+  };
+}
 
 function getReactMockScriptTag() {
   if (config.mode === "mode-sri-active") {
@@ -71,23 +167,72 @@ app.get(["/", "/index.html"], (req, res) => {
 
 app.use(express.static("public", { index: false }));
 
-const emails = [
-  {
-    id: 1,
-    sender: "alice@mail.com",
-    subject: "Welcome",
-    body: "Hello John, welcome to SecureMail!",
-  },
-  {
-    id: 2,
-    sender: "boss@company.com",
-    subject: "Meeting",
-    body: "Reminder: meeting at 10:00.",
-  },
-];
+app.get("/login", (req, res) => {
+  const username = String(req.query.username || "").trim().toLowerCase();
+  const user = users[username];
+
+  if (!user) {
+    return res.status(400).json({
+      error: "Unknown user. Use john or alice.",
+    });
+  }
+
+  const currentSession = getSession(req);
+  if (currentSession) {
+    sessions.delete(currentSession.sessionId);
+  }
+
+  const sessionId = createSession(username);
+  res.setHeader("Set-Cookie", buildSessionCookie(sessionId));
+  return res.json({
+    message: "Login successful.",
+    user: {
+      username: user.username,
+      displayName: user.displayName,
+    },
+  });
+});
+
+app.get("/logout", (req, res) => {
+  const session = getSession(req);
+
+  if (session) {
+    sessions.delete(session.sessionId);
+  }
+
+  res.setHeader("Set-Cookie", buildExpiredSessionCookie());
+  return res.json({
+    message: "Logout successful.",
+  });
+});
+
+app.get("/api/me", (req, res) => {
+  const session = getSession(req);
+
+  if (!session) {
+    return res.status(401).json({
+      error: "Authentication required.",
+    });
+  }
+
+  return res.json({
+    user: {
+      username: session.user.username,
+      displayName: session.user.displayName,
+    },
+  });
+});
 
 app.get("/api/emails", (req, res) => {
-  res.json(emails);
+  const session = getSession(req);
+
+  if (!session) {
+    return res.status(401).json({
+      error: "Authentication required.",
+    });
+  }
+
+  return res.json(session.user.emails);
 });
 
 app.listen(3000, () => {

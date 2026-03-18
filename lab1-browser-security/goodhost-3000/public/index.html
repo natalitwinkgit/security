@@ -9,7 +9,33 @@
     <div class="logo-container">
       <img src="http://localhost:7000/logo.png" alt="logo" />
     </div>
-    <div id="username">John Smith</div>
+
+    <div
+      style="
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: end;
+        margin-top: 20px;
+      "
+    >
+      <div>
+        <label for="usernameInput">Username</label><br />
+        <input
+          id="usernameInput"
+          type="text"
+          placeholder="john or alice"
+          autocomplete="off"
+        />
+      </div>
+      <button id="loginButton" type="button">Login</button>
+      <button id="logoutButton" type="button">Logout</button>
+    </div>
+
+    <p id="authMessage" style="margin-top: 12px">
+      Use <strong>john</strong> or <strong>alice</strong> to create a session.
+    </p>
+    <div style="margin-top: 8px">Logged in as: <span id="username">Guest</span></div>
 
     <div style="display: flex; gap: 20px; margin-top: 20px">
       <div style="width: 280px">
