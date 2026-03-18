@@ -3,6 +3,8 @@ const usernameLabel = document.getElementById("username");
 const usernameInput = document.getElementById("usernameInput");
 const loginButton = document.getElementById("loginButton");
 const logoutButton = document.getElementById("logoutButton");
+const scopeProbeButton = document.getElementById("scopeProbeButton");
+const scopeProbeResult = document.getElementById("scopeProbeResult");
 const list = document.getElementById("emailList");
 const subj = document.getElementById("emailSubject");
 const body = document.getElementById("emailBody");
@@ -102,6 +104,16 @@ async function logout() {
   setAuthMessage("You are logged out.");
 }
 
+async function probeOtherPath() {
+  try {
+    const payload = await fetchJson("/other");
+    scopeProbeResult.textContent = JSON.stringify(payload, null, 2);
+  } catch (error) {
+    console.error(error);
+    scopeProbeResult.textContent = error.message;
+  }
+}
+
 loginButton.addEventListener("click", () => {
   login();
 });
@@ -110,11 +122,17 @@ logoutButton.addEventListener("click", () => {
   logout();
 });
 
+scopeProbeButton.addEventListener("click", () => {
+  probeOtherPath();
+});
+
 usernameInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     login();
   }
 });
 
+scopeProbeResult.textContent =
+  'Use this button to see whether the browser sends SessionID to "/other".';
 clearEmailView();
 syncSession();

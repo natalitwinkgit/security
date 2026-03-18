@@ -22,7 +22,7 @@ const balancedModes = new Set([
   "mode-insecure",
   "mode-sri-active",
 ]);
-const sessionCookieAttributes = ["Path=/", "HttpOnly"];
+const sessionCookieAttributes = ["Path=/api", "HttpOnly"];
 const users = {
   john: {
     username: "john",
@@ -194,6 +194,10 @@ app.get("/login", (req, res) => {
 });
 
 app.get("/logout", (req, res) => {
+  res.redirect("/api/logout");
+});
+
+app.get("/api/logout", (req, res) => {
   const session = getSession(req);
 
   if (session) {
@@ -233,6 +237,14 @@ app.get("/api/emails", (req, res) => {
   }
 
   return res.json(session.user.emails);
+});
+
+app.get("/other", (req, res) => {
+  res.json({
+    path: "/other",
+    receivedCookie: Boolean(req.headers.cookie),
+    cookieHeader: req.headers.cookie || null,
+  });
 });
 
 app.listen(3000, () => {
