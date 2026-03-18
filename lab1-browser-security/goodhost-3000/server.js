@@ -150,7 +150,7 @@ app.use((req, res, next) => {
   if (balancedModes.has(config.mode)) {
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; img-src *; style-src *; script-src 'self' http://localhost:4000 http://localhost:7000;"
+      "default-src 'self'; img-src *; style-src *; script-src 'self' http://localhost:4000 http://localhost:5000 http://localhost:7000;"
     );
   }
 
