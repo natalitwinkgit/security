@@ -46,6 +46,7 @@ const sameSiteMode = readArg("--same-site=", "off");
 const deleteMethod = readArg("--delete-method=", "get");
 const csrfMode = readArg("--csrf-mode=", "off");
 const transportMode = readArg("--transport=", "http");
+const hstsMode = readArg("--hsts=", "off");
 const httpRedirectMode = readArg("--http-redirect=", "off");
 const httpPort = Number.parseInt(readArg("--http-port=", "3000"), 10);
 const httpsPort = Number.parseInt(readArg("--https-port=", "3443"), 10);
@@ -55,6 +56,7 @@ const validSameSiteModes = new Set(["off", "lax", "strict"]);
 const validDeleteMethods = new Set(["get", "post"]);
 const validCsrfModes = new Set(["off", "token"]);
 const validTransportModes = new Set(["http", "https"]);
+const validHstsModes = new Set(["off", "on"]);
 const validHttpRedirectModes = new Set(["off", "on"]);
 
 if (!validCookieSecurityModes.has(cookieSecurityMode)) {
@@ -98,6 +100,11 @@ if (!validCsrfModes.has(csrfMode)) {
 
 if (!validTransportModes.has(transportMode)) {
   console.error(`[Transport] Unsupported mode "${transportMode}". Use "http" or "https".`);
+  process.exit(1);
+}
+
+if (!validHstsModes.has(hstsMode)) {
+  console.error(`[Transport] Unsupported HSTS mode "${hstsMode}". Use "off" or "on".`);
   process.exit(1);
 }
 
@@ -182,6 +189,7 @@ console.log(`[Auth] SameSite mode: ${sameSiteMode}`);
 console.log(`[Mail] Delete method: ${deleteMethod}`);
 console.log(`[Mail] CSRF mode: ${csrfMode}`);
 console.log(`[Transport] Mode: ${transportMode}`);
+console.log(`[Transport] HSTS: ${hstsMode}`);
 console.log(`[Transport] HTTP redirect: ${httpRedirectMode}`);
 
 function parseCookies(cookieHeader = "") {
@@ -318,6 +326,10 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
+  if (transportMode === "https" && hstsMode === "on") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+
   if (config.mode === "csp-strict") {
     res.setHeader("Content-Security-Policy", "default-src 'self';");
   }
@@ -353,6 +365,7 @@ app.get("/api/runtime", (req, res) => {
     sameSiteMode,
     deleteMethod,
     csrfMode,
+    hstsMode,
   });
 });
 
