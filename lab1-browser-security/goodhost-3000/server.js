@@ -14,6 +14,11 @@ const reactMockUrl = `${trustedCdnOrigin}/react-mock.js`;
 const reactMockScriptPattern =
   /<script\s+src="http:\/\/localhost:7000\/react-mock\.js"[\s\S]*?<\/script>/m;
 
+function readArg(prefix, fallback) {
+  const arg = process.argv.find((value) => value.startsWith(prefix));
+  return arg ? arg.slice(prefix.length) : fallback;
+}
+
 const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 const version = fs.readFileSync(versionPath, "utf-8").trim();
 const allowAllCors = cors();
@@ -22,22 +27,27 @@ const balancedModes = new Set([
   "mode-insecure",
   "mode-sri-active",
 ]);
-const cookieSecurityModeArg = process.argv.find((arg) =>
-  arg.startsWith("--cookie-security=")
-);
-const cookieSecurityMode = cookieSecurityModeArg
-  ? cookieSecurityModeArg.split("=")[1]
-  : "secure";
-const validCookieSecurityModes = new Set(["httponly", "secure"]);
+const cookieSecurityMode = readArg("--cookie-security=", "secure");
+const cookiePath = readArg("--cookie-path=", "/api");
+const validCookieSecurityModes = new Set(["scriptable", "httponly", "secure"]);
 
 if (!validCookieSecurityModes.has(cookieSecurityMode)) {
   console.error(
-    `[Auth] Unsupported cookie-security mode "${cookieSecurityMode}". Use "httponly" or "secure".`
+    `[Auth] Unsupported cookie-security mode "${cookieSecurityMode}". Use "scriptable", "httponly" or "secure".`
   );
   process.exit(1);
 }
 
-const sessionCookieAttributes = ["Path=/api", "HttpOnly"];
+if (!cookiePath.startsWith("/")) {
+  console.error(`[Auth] Unsupported cookie path "${cookiePath}". Use a path like "/" or "/api".`);
+  process.exit(1);
+}
+
+const sessionCookieAttributes = [`Path=${cookiePath}`];
+
+if (cookieSecurityMode !== "scriptable") {
+  sessionCookieAttributes.push("HttpOnly");
+}
 
 if (cookieSecurityMode === "secure") {
   sessionCookieAttributes.push("Secure");

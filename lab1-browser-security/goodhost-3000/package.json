@@ -7,6 +7,7 @@
     "start": "node server.js --cookie-security=secure",
     "start:lab5-task1": "node server.js --cookie-security=httponly",
     "start:lab5-task2": "node server.js --cookie-security=secure",
+    "start:lab6-task1": "node server.js --cookie-security=scriptable --cookie-path=/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

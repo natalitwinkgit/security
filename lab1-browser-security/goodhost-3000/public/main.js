@@ -93,15 +93,11 @@ async function login() {
 }
 
 async function logout() {
-  try {
-    await fetchJson("/logout");
-  } catch (error) {
-    console.error(error);
-  }
-
+  document.cookie = "SessionID=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
   usernameLabel.textContent = "Guest";
   clearEmailView();
   setAuthMessage("You are logged out.");
+  window.location.reload();
 }
 
 async function probeOtherPath() {
