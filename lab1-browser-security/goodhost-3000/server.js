@@ -31,8 +31,10 @@ const cookieSecurityMode = readArg("--cookie-security=", "secure");
 const cookiePath = readArg("--cookie-path=", "/api");
 const logoutMode = readArg("--logout-mode=", "synchronized");
 const sessionTtlMs = Number.parseInt(readArg("--session-ttl-ms=", "0"), 10);
+const sameSiteMode = readArg("--same-site=", "off");
 const validCookieSecurityModes = new Set(["scriptable", "httponly", "secure"]);
 const validLogoutModes = new Set(["client-only", "synchronized"]);
+const validSameSiteModes = new Set(["off", "lax", "strict"]);
 
 if (!validCookieSecurityModes.has(cookieSecurityMode)) {
   console.error(
@@ -58,6 +60,11 @@ if (!Number.isFinite(sessionTtlMs) || sessionTtlMs < 0) {
   process.exit(1);
 }
 
+if (!validSameSiteModes.has(sameSiteMode)) {
+  console.error(`[Auth] Unsupported SameSite mode "${sameSiteMode}". Use "off", "lax" or "strict".`);
+  process.exit(1);
+}
+
 const sessionCookieAttributes = [`Path=${cookiePath}`];
 
 if (cookieSecurityMode !== "scriptable") {
@@ -66,6 +73,10 @@ if (cookieSecurityMode !== "scriptable") {
 
 if (cookieSecurityMode === "secure") {
   sessionCookieAttributes.push("Secure");
+}
+
+if (sameSiteMode !== "off") {
+  sessionCookieAttributes.push(`SameSite=${sameSiteMode[0].toUpperCase()}${sameSiteMode.slice(1)}`);
 }
 
 const users = {
@@ -116,6 +127,7 @@ console.log(
 );
 console.log(`[Auth] Logout mode: ${logoutMode}`);
 console.log(`[Auth] Session TTL: ${sessionTtlMs > 0 ? `${sessionTtlMs} ms` : "disabled"}`);
+console.log(`[Auth] SameSite mode: ${sameSiteMode}`);
 
 function parseCookies(cookieHeader = "") {
   return cookieHeader
@@ -257,6 +269,7 @@ app.get("/api/runtime", (req, res) => {
     clientCookieMutable: cookieSecurityMode === "scriptable",
     logoutMode,
     sessionTtlMs,
+    sameSiteMode,
   });
 });
 

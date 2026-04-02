@@ -15,6 +15,7 @@ const runtimeConfig = {
   clientCookieMutable: false,
   logoutMode: "synchronized",
   sessionTtlMs: 0,
+  sameSiteMode: "off",
 };
 
 function setAuthMessage(message, isError = false) {
@@ -83,7 +84,8 @@ function renderRuntimeSummary() {
     `Logout mode: ${runtimeConfig.logoutMode} | ` +
     `Cookie mode: ${runtimeConfig.cookieSecurityMode} | ` +
     `Cookie path: ${runtimeConfig.cookiePath} | ` +
-    `TTL: ${formatTtl(runtimeConfig.sessionTtlMs)}`;
+    `TTL: ${formatTtl(runtimeConfig.sessionTtlMs)} | ` +
+    `SameSite: ${runtimeConfig.sameSiteMode}`;
 }
 
 async function fetchJson(url) {
