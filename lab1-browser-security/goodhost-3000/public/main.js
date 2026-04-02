@@ -35,12 +35,29 @@ function renderEmails(emails) {
 
   emails.forEach((email) => {
     const li = document.createElement("li");
-    li.style.cursor = "pointer";
-    li.textContent = `${email.sender}: ${email.subject}`;
-    li.addEventListener("click", () => {
+    li.style.display = "flex";
+    li.style.alignItems = "center";
+    li.style.justifyContent = "space-between";
+    li.style.gap = "12px";
+
+    const preview = document.createElement("span");
+    preview.style.cursor = "pointer";
+    preview.textContent = `#${email.id} ${email.sender}: ${email.subject}`;
+    preview.addEventListener("click", () => {
       subj.textContent = email.subject;
       body.textContent = email.body;
     });
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete";
+    deleteButton.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await deleteEmail(email.id);
+    });
+
+    li.appendChild(preview);
+    li.appendChild(deleteButton);
     list.appendChild(li);
   });
 }
@@ -111,6 +128,17 @@ async function syncSession() {
       return;
     }
 
+    console.error(error);
+    setAuthMessage(error.message, true);
+  }
+}
+
+async function deleteEmail(emailId) {
+  try {
+    await fetchJson(`/api/emails/delete/${emailId}`);
+    await syncSession();
+    setAuthMessage(`Email #${emailId} deleted.`);
+  } catch (error) {
     console.error(error);
     setAuthMessage(error.message, true);
   }

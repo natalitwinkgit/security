@@ -10,6 +10,8 @@
     "start:lab6-task1": "node server.js --cookie-security=scriptable --cookie-path=/ --logout-mode=client-only",
     "start:lab6-task2": "node server.js --cookie-security=scriptable --cookie-path=/ --logout-mode=synchronized",
     "start:lab6-task3": "node server.js --cookie-security=scriptable --cookie-path=/ --logout-mode=synchronized --session-ttl-ms=120000",
+    "start:lab7-task1": "node server.js --cookie-security=httponly --cookie-path=/api",
+    "start:lab7-task2": "node server.js --cookie-security=httponly --cookie-path=/api",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

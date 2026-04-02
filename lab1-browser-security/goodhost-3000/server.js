@@ -192,6 +192,17 @@ function getSession(req) {
   };
 }
 
+function deleteEmailForUser(user, emailId) {
+  const emailIndex = user.emails.findIndex((email) => email.id === emailId);
+
+  if (emailIndex === -1) {
+    return false;
+  }
+
+  user.emails.splice(emailIndex, 1);
+  return true;
+}
+
 function getReactMockScriptTag() {
   if (config.mode === "mode-sri-active") {
     return [
@@ -319,6 +330,35 @@ app.get("/api/emails", (req, res) => {
   }
 
   return res.json(session.user.emails);
+});
+
+app.get("/api/emails/delete/:id", (req, res) => {
+  const session = getSession(req);
+
+  if (!session) {
+    return res.status(401).json({
+      error: "Authentication required.",
+    });
+  }
+
+  const emailId = Number.parseInt(req.params.id, 10);
+
+  if (!Number.isInteger(emailId)) {
+    return res.status(400).json({
+      error: "Invalid email id.",
+    });
+  }
+
+  if (!deleteEmailForUser(session.user, emailId)) {
+    return res.status(404).json({
+      error: "Email not found.",
+    });
+  }
+
+  return res.json({
+    message: `Email #${emailId} deleted.`,
+    emails: session.user.emails,
+  });
 });
 
 app.get("/other", (req, res) => {
