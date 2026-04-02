@@ -16,6 +16,9 @@ const runtimeConfig = {
   logoutMode: "synchronized",
   sessionTtlMs: 0,
   sameSiteMode: "off",
+  deleteMethod: "get",
+  csrfMode: "off",
+  csrfToken: null,
 };
 
 function setAuthMessage(message, isError = false) {
@@ -85,11 +88,13 @@ function renderRuntimeSummary() {
     `Cookie mode: ${runtimeConfig.cookieSecurityMode} | ` +
     `Cookie path: ${runtimeConfig.cookiePath} | ` +
     `TTL: ${formatTtl(runtimeConfig.sessionTtlMs)} | ` +
-    `SameSite: ${runtimeConfig.sameSiteMode}`;
+    `SameSite: ${runtimeConfig.sameSiteMode} | ` +
+    `Delete: ${runtimeConfig.deleteMethod.toUpperCase()} | ` +
+    `CSRF: ${runtimeConfig.csrfMode}`;
 }
 
-async function fetchJson(url) {
-  const response = await fetch(url);
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, options);
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
@@ -115,11 +120,13 @@ async function loadEmails() {
 async function syncSession() {
   try {
     const payload = await fetchJson("/api/me");
+    runtimeConfig.csrfToken = payload.csrfToken || null;
     usernameLabel.textContent = payload.user.displayName;
     setAuthMessage(`Logged in as ${payload.user.displayName}.`);
     await loadEmails();
   } catch (error) {
     if (error.status === 401) {
+      runtimeConfig.csrfToken = null;
       usernameLabel.textContent = "Guest";
       clearEmailView();
       setAuthMessage(
@@ -137,7 +144,20 @@ async function syncSession() {
 
 async function deleteEmail(emailId) {
   try {
-    await fetchJson(`/api/emails/delete/${emailId}`);
+    if (runtimeConfig.deleteMethod === "post") {
+      await fetchJson(`/api/emails/delete/${emailId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          _csrf_token: runtimeConfig.csrfToken,
+        }),
+      });
+    } else {
+      await fetchJson(`/api/emails/delete/${emailId}`);
+    }
+
     await syncSession();
     setAuthMessage(`Email #${emailId} deleted.`);
   } catch (error) {

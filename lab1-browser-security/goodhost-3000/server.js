@@ -5,6 +5,8 @@ const path = require("path");
 const cors = require("cors");
 
 const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 const configPath = path.join(__dirname, "config.json");
 const versionPath = path.join(__dirname, "version.txt");
@@ -32,9 +34,13 @@ const cookiePath = readArg("--cookie-path=", "/api");
 const logoutMode = readArg("--logout-mode=", "synchronized");
 const sessionTtlMs = Number.parseInt(readArg("--session-ttl-ms=", "0"), 10);
 const sameSiteMode = readArg("--same-site=", "off");
+const deleteMethod = readArg("--delete-method=", "get");
+const csrfMode = readArg("--csrf-mode=", "off");
 const validCookieSecurityModes = new Set(["scriptable", "httponly", "secure"]);
 const validLogoutModes = new Set(["client-only", "synchronized"]);
 const validSameSiteModes = new Set(["off", "lax", "strict"]);
+const validDeleteMethods = new Set(["get", "post"]);
+const validCsrfModes = new Set(["off", "token"]);
 
 if (!validCookieSecurityModes.has(cookieSecurityMode)) {
   console.error(
@@ -62,6 +68,16 @@ if (!Number.isFinite(sessionTtlMs) || sessionTtlMs < 0) {
 
 if (!validSameSiteModes.has(sameSiteMode)) {
   console.error(`[Auth] Unsupported SameSite mode "${sameSiteMode}". Use "off", "lax" or "strict".`);
+  process.exit(1);
+}
+
+if (!validDeleteMethods.has(deleteMethod)) {
+  console.error(`[Mail] Unsupported delete method "${deleteMethod}". Use "get" or "post".`);
+  process.exit(1);
+}
+
+if (!validCsrfModes.has(csrfMode)) {
+  console.error(`[Mail] Unsupported CSRF mode "${csrfMode}". Use "off" or "token".`);
   process.exit(1);
 }
 
@@ -128,6 +144,8 @@ console.log(
 console.log(`[Auth] Logout mode: ${logoutMode}`);
 console.log(`[Auth] Session TTL: ${sessionTtlMs > 0 ? `${sessionTtlMs} ms` : "disabled"}`);
 console.log(`[Auth] SameSite mode: ${sameSiteMode}`);
+console.log(`[Mail] Delete method: ${deleteMethod}`);
+console.log(`[Mail] CSRF mode: ${csrfMode}`);
 
 function parseCookies(cookieHeader = "") {
   return cookieHeader
@@ -168,6 +186,7 @@ function createSession(username) {
   sessions.set(sessionId, {
     username,
     createdAt: Date.now(),
+    csrfToken: crypto.randomBytes(24).toString("hex"),
   });
   return sessionId;
 }
@@ -201,6 +220,7 @@ function getSession(req) {
     sessionId,
     user: users[sessionRecord.username],
     createdAt: sessionRecord.createdAt,
+    csrfToken: sessionRecord.csrfToken,
   };
 }
 
@@ -213,6 +233,15 @@ function deleteEmailForUser(user, emailId) {
 
   user.emails.splice(emailIndex, 1);
   return true;
+}
+
+function readIncomingCsrfToken(req) {
+  return (
+    req.get("_csrf_token") ||
+    req.get("x-csrf-token") ||
+    req.body?._csrf_token ||
+    null
+  );
 }
 
 function getReactMockScriptTag() {
@@ -270,6 +299,8 @@ app.get("/api/runtime", (req, res) => {
     logoutMode,
     sessionTtlMs,
     sameSiteMode,
+    deleteMethod,
+    csrfMode,
   });
 });
 
@@ -289,6 +320,7 @@ app.get("/login", (req, res) => {
   }
 
   const sessionId = createSession(username);
+  const session = sessions.get(sessionId);
   res.setHeader("Set-Cookie", buildSessionCookie(sessionId));
   return res.json({
     message: "Login successful.",
@@ -296,6 +328,7 @@ app.get("/login", (req, res) => {
       username: user.username,
       displayName: user.displayName,
     },
+    csrfToken: csrfMode === "token" ? session.csrfToken : null,
   });
 });
 
@@ -330,6 +363,7 @@ app.get("/api/me", (req, res) => {
       username: session.user.username,
       displayName: session.user.displayName,
     },
+    csrfToken: csrfMode === "token" ? session.csrfToken : null,
   });
 });
 
@@ -346,12 +380,63 @@ app.get("/api/emails", (req, res) => {
 });
 
 app.get("/api/emails/delete/:id", (req, res) => {
+  if (deleteMethod !== "get") {
+    return res.status(405).json({
+      error: "Deletion now requires POST.",
+    });
+  }
+
   const session = getSession(req);
 
   if (!session) {
     return res.status(401).json({
       error: "Authentication required.",
     });
+  }
+
+  const emailId = Number.parseInt(req.params.id, 10);
+
+  if (!Number.isInteger(emailId)) {
+    return res.status(400).json({
+      error: "Invalid email id.",
+    });
+  }
+
+  if (!deleteEmailForUser(session.user, emailId)) {
+    return res.status(404).json({
+      error: "Email not found.",
+    });
+  }
+
+  return res.json({
+    message: `Email #${emailId} deleted.`,
+    emails: session.user.emails,
+  });
+});
+
+app.post("/api/emails/delete/:id", (req, res) => {
+  if (deleteMethod !== "post") {
+    return res.status(405).json({
+      error: "Deletion is currently exposed through GET.",
+    });
+  }
+
+  const session = getSession(req);
+
+  if (!session) {
+    return res.status(401).json({
+      error: "Authentication required.",
+    });
+  }
+
+  if (csrfMode === "token") {
+    const suppliedToken = readIncomingCsrfToken(req);
+
+    if (!suppliedToken || suppliedToken !== session.csrfToken) {
+      return res.status(403).json({
+        error: "Forbidden. Invalid CSRF token.",
+      });
+    }
   }
 
   const emailId = Number.parseInt(req.params.id, 10);
