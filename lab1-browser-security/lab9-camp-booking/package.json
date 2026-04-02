@@ -1,0 +1,19 @@
+{
+  "name": "lab9-camp-booking",
+  "version": "1.0.0",
+  "description": "Camp booking validator app for Lab 9",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js --ui-validation=on --server-validation=on",
+    "start:lab9-task1": "node server.js --ui-validation=off --server-validation=off",
+    "start:lab9-task2": "node server.js --ui-validation=on --server-validation=off",
+    "start:lab9-task3": "node server.js --ui-validation=on --server-validation=off",
+    "start:lab9-task4": "node server.js --ui-validation=on --server-validation=on"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
