@@ -22,7 +22,27 @@ const balancedModes = new Set([
   "mode-insecure",
   "mode-sri-active",
 ]);
-const sessionCookieAttributes = ["Path=/api", "HttpOnly", "Secure"];
+const cookieSecurityModeArg = process.argv.find((arg) =>
+  arg.startsWith("--cookie-security=")
+);
+const cookieSecurityMode = cookieSecurityModeArg
+  ? cookieSecurityModeArg.split("=")[1]
+  : "secure";
+const validCookieSecurityModes = new Set(["httponly", "secure"]);
+
+if (!validCookieSecurityModes.has(cookieSecurityMode)) {
+  console.error(
+    `[Auth] Unsupported cookie-security mode "${cookieSecurityMode}". Use "httponly" or "secure".`
+  );
+  process.exit(1);
+}
+
+const sessionCookieAttributes = ["Path=/api", "HttpOnly"];
+
+if (cookieSecurityMode === "secure") {
+  sessionCookieAttributes.push("Secure");
+}
+
 const users = {
   john: {
     username: "john",
@@ -64,6 +84,11 @@ const users = {
 const sessions = new Map();
 
 console.log(`[System] Starting ${config.appName} v${version}...`);
+console.log(
+  `[Auth] Session cookie mode: ${cookieSecurityMode} (${sessionCookieAttributes.join(
+    "; "
+  )})`
+);
 
 function parseCookies(cookieHeader = "") {
   return cookieHeader

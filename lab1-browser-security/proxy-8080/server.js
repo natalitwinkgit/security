@@ -5,6 +5,12 @@ const TARGET_HOST = "localhost";
 const TARGET_PORT = 3000;
 const modeArg = process.argv.find((arg) => arg.startsWith("--mode="));
 const mode = modeArg ? modeArg.split("=")[1] : "normal";
+const validModes = new Set(["normal", "breach"]);
+
+if (!validModes.has(mode)) {
+  console.error(`[Proxy] Unsupported mode "${mode}". Use "normal" or "breach".`);
+  process.exit(1);
+}
 
 function logInterceptedCookie(req) {
   if (mode !== "breach") {

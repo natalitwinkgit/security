@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node server.js --cookie-security=secure",
+    "start:lab5-task1": "node server.js --cookie-security=httponly",
+    "start:lab5-task2": "node server.js --cookie-security=secure",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

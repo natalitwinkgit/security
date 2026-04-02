@@ -4,7 +4,8 @@
   "description": "MitM proxy for Lab 5",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node server.js --mode=normal",
+    "start:normal": "node server.js --mode=normal",
     "start:breach": "node server.js --mode=breach"
   },
   "keywords": [],
