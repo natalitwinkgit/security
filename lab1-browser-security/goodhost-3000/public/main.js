@@ -14,6 +14,7 @@ const runtimeConfig = {
   cookieSecurityMode: "secure",
   clientCookieMutable: false,
   logoutMode: "synchronized",
+  sessionTtlMs: 0,
 };
 
 function setAuthMessage(message, isError = false) {
@@ -44,6 +45,18 @@ function renderEmails(emails) {
   });
 }
 
+function formatTtl(ttlMs) {
+  if (ttlMs <= 0) {
+    return "disabled";
+  }
+
+  if (ttlMs % 60000 === 0) {
+    return `${ttlMs / 60000}m`;
+  }
+
+  return `${ttlMs / 1000}s`;
+}
+
 function renderRuntimeSummary() {
   if (!runtimeSummary) {
     return;
@@ -52,7 +65,8 @@ function renderRuntimeSummary() {
   runtimeSummary.textContent =
     `Logout mode: ${runtimeConfig.logoutMode} | ` +
     `Cookie mode: ${runtimeConfig.cookieSecurityMode} | ` +
-    `Cookie path: ${runtimeConfig.cookiePath}`;
+    `Cookie path: ${runtimeConfig.cookiePath} | ` +
+    `TTL: ${formatTtl(runtimeConfig.sessionTtlMs)}`;
 }
 
 async function fetchJson(url) {
@@ -89,7 +103,11 @@ async function syncSession() {
     if (error.status === 401) {
       usernameLabel.textContent = "Guest";
       clearEmailView();
-      setAuthMessage("Use john or alice to create a session.");
+      setAuthMessage(
+        runtimeConfig.sessionTtlMs > 0
+          ? "Use john or alice to create a session. Existing sessions may have expired."
+          : "Use john or alice to create a session."
+      );
       return;
     }
 

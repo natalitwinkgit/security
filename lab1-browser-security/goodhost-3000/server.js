@@ -30,6 +30,7 @@ const balancedModes = new Set([
 const cookieSecurityMode = readArg("--cookie-security=", "secure");
 const cookiePath = readArg("--cookie-path=", "/api");
 const logoutMode = readArg("--logout-mode=", "synchronized");
+const sessionTtlMs = Number.parseInt(readArg("--session-ttl-ms=", "0"), 10);
 const validCookieSecurityModes = new Set(["scriptable", "httponly", "secure"]);
 const validLogoutModes = new Set(["client-only", "synchronized"]);
 
@@ -49,6 +50,11 @@ if (!validLogoutModes.has(logoutMode)) {
   console.error(
     `[Auth] Unsupported logout mode "${logoutMode}". Use "client-only" or "synchronized".`
   );
+  process.exit(1);
+}
+
+if (!Number.isFinite(sessionTtlMs) || sessionTtlMs < 0) {
+  console.error(`[Auth] Unsupported session TTL "${sessionTtlMs}". Use 0 or a positive integer.`);
   process.exit(1);
 }
 
@@ -109,6 +115,7 @@ console.log(
   )})`
 );
 console.log(`[Auth] Logout mode: ${logoutMode}`);
+console.log(`[Auth] Session TTL: ${sessionTtlMs > 0 ? `${sessionTtlMs} ms` : "disabled"}`);
 
 function parseCookies(cookieHeader = "") {
   return cookieHeader
@@ -146,22 +153,42 @@ function buildExpiredSessionCookie() {
 
 function createSession(username) {
   const sessionId = crypto.randomUUID();
-  sessions.set(sessionId, username);
+  sessions.set(sessionId, {
+    username,
+    createdAt: Date.now(),
+  });
   return sessionId;
 }
 
+function purgeExpiredSessions() {
+  if (sessionTtlMs <= 0) {
+    return;
+  }
+
+  const now = Date.now();
+
+  for (const [sessionId, session] of sessions.entries()) {
+    if (now - session.createdAt >= sessionTtlMs) {
+      sessions.delete(sessionId);
+    }
+  }
+}
+
 function getSession(req) {
+  purgeExpiredSessions();
+
   const cookies = parseCookies(req.headers.cookie);
   const sessionId = cookies.SessionID;
-  const username = sessionId ? sessions.get(sessionId) : null;
+  const sessionRecord = sessionId ? sessions.get(sessionId) : null;
 
-  if (!sessionId || !username) {
+  if (!sessionId || !sessionRecord) {
     return null;
   }
 
   return {
     sessionId,
-    user: users[username],
+    user: users[sessionRecord.username],
+    createdAt: sessionRecord.createdAt,
   };
 }
 
@@ -218,6 +245,7 @@ app.get("/api/runtime", (req, res) => {
     cookieSecurityMode,
     clientCookieMutable: cookieSecurityMode === "scriptable",
     logoutMode,
+    sessionTtlMs,
   });
 });
 
