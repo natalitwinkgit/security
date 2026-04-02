@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const express = require("express");
 const fs = require("fs");
+const http = require("http");
 const https = require("https");
 const path = require("path");
 const cors = require("cors");
@@ -45,6 +46,8 @@ const sameSiteMode = readArg("--same-site=", "off");
 const deleteMethod = readArg("--delete-method=", "get");
 const csrfMode = readArg("--csrf-mode=", "off");
 const transportMode = readArg("--transport=", "http");
+const httpRedirectMode = readArg("--http-redirect=", "off");
+const httpPort = Number.parseInt(readArg("--http-port=", "3000"), 10);
 const httpsPort = Number.parseInt(readArg("--https-port=", "3443"), 10);
 const validCookieSecurityModes = new Set(["scriptable", "httponly", "secure"]);
 const validLogoutModes = new Set(["client-only", "synchronized"]);
@@ -52,6 +55,7 @@ const validSameSiteModes = new Set(["off", "lax", "strict"]);
 const validDeleteMethods = new Set(["get", "post"]);
 const validCsrfModes = new Set(["off", "token"]);
 const validTransportModes = new Set(["http", "https"]);
+const validHttpRedirectModes = new Set(["off", "on"]);
 
 if (!validCookieSecurityModes.has(cookieSecurityMode)) {
   console.error(
@@ -94,6 +98,16 @@ if (!validCsrfModes.has(csrfMode)) {
 
 if (!validTransportModes.has(transportMode)) {
   console.error(`[Transport] Unsupported mode "${transportMode}". Use "http" or "https".`);
+  process.exit(1);
+}
+
+if (!validHttpRedirectModes.has(httpRedirectMode)) {
+  console.error(`[Transport] Unsupported HTTP redirect mode "${httpRedirectMode}". Use "off" or "on".`);
+  process.exit(1);
+}
+
+if (!Number.isFinite(httpPort) || httpPort <= 0) {
+  console.error(`[Transport] Unsupported HTTP port "${httpPort}". Use a positive integer.`);
   process.exit(1);
 }
 
@@ -168,6 +182,7 @@ console.log(`[Auth] SameSite mode: ${sameSiteMode}`);
 console.log(`[Mail] Delete method: ${deleteMethod}`);
 console.log(`[Mail] CSRF mode: ${csrfMode}`);
 console.log(`[Transport] Mode: ${transportMode}`);
+console.log(`[Transport] HTTP redirect: ${httpRedirectMode}`);
 
 function parseCookies(cookieHeader = "") {
   return cookieHeader
@@ -288,6 +303,10 @@ function removeMixedContent(html) {
     .replace(bridgeCommentPattern, "")
     .replace(partnerScriptPattern, "")
     .replace(weatherScriptPattern, "");
+}
+
+function buildHttpsLocation(req) {
+  return `https://localhost:${httpsPort}${req.url}`;
 }
 
 app.use((req, res, next) => {
@@ -509,6 +528,21 @@ if (transportMode === "https") {
   https.createServer(tlsOptions, app).listen(httpsPort, () => {
     console.log(`Secure Server running on https://localhost:${httpsPort}`);
   });
+
+  if (httpRedirectMode === "on") {
+    http
+      .createServer((req, res) => {
+        const location = buildHttpsLocation(req);
+        res.writeHead(301, {
+          Location: location,
+          "Content-Type": "text/plain; charset=utf-8",
+        });
+        res.end(`Redirecting to ${location}`);
+      })
+      .listen(httpPort, () => {
+        console.log(`HTTP redirect server running on http://localhost:${httpPort}`);
+      });
+  }
 } else {
   app.listen(3000, () => {
     console.log("GoodHost running on http://localhost:3000");

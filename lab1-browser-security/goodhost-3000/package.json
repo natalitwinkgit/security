@@ -16,6 +16,7 @@
     "start:lab7-task3:strict": "node server.js --cookie-security=httponly --cookie-path=/api --same-site=strict",
     "start:lab7-task4": "node server.js --cookie-security=httponly --cookie-path=/api --same-site=off --delete-method=post --csrf-mode=token",
     "start:lab8-task2": "node server.js --transport=https --https-port=3443 --cookie-security=httponly --cookie-path=/api --same-site=off",
+    "start:lab8-task3": "node server.js --transport=https --https-port=3443 --http-redirect=on --http-port=3000 --cookie-security=httponly --cookie-path=/api --same-site=off",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
