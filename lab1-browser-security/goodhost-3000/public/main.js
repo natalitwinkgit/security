@@ -5,9 +5,16 @@ const loginButton = document.getElementById("loginButton");
 const logoutButton = document.getElementById("logoutButton");
 const scopeProbeButton = document.getElementById("scopeProbeButton");
 const scopeProbeResult = document.getElementById("scopeProbeResult");
+const runtimeSummary = document.getElementById("runtimeSummary");
 const list = document.getElementById("emailList");
 const subj = document.getElementById("emailSubject");
 const body = document.getElementById("emailBody");
+const runtimeConfig = {
+  cookiePath: "/api",
+  cookieSecurityMode: "secure",
+  clientCookieMutable: false,
+  logoutMode: "synchronized",
+};
 
 function setAuthMessage(message, isError = false) {
   authMessage.textContent = message;
@@ -37,6 +44,17 @@ function renderEmails(emails) {
   });
 }
 
+function renderRuntimeSummary() {
+  if (!runtimeSummary) {
+    return;
+  }
+
+  runtimeSummary.textContent =
+    `Logout mode: ${runtimeConfig.logoutMode} | ` +
+    `Cookie mode: ${runtimeConfig.cookieSecurityMode} | ` +
+    `Cookie path: ${runtimeConfig.cookiePath}`;
+}
+
 async function fetchJson(url) {
   const response = await fetch(url);
   const payload = await response.json().catch(() => ({}));
@@ -48,6 +66,12 @@ async function fetchJson(url) {
   }
 
   return payload;
+}
+
+async function loadRuntimeConfig() {
+  const payload = await fetchJson("/api/runtime");
+  Object.assign(runtimeConfig, payload);
+  renderRuntimeSummary();
 }
 
 async function loadEmails() {
@@ -92,8 +116,27 @@ async function login() {
   }
 }
 
+function clearSessionCookie() {
+  if (!runtimeConfig.clientCookieMutable) {
+    return;
+  }
+
+  document.cookie = `SessionID=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${runtimeConfig.cookiePath};`;
+}
+
 async function logout() {
-  document.cookie = "SessionID=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  try {
+    if (runtimeConfig.logoutMode === "synchronized") {
+      await fetchJson("/api/logout");
+    }
+
+    clearSessionCookie();
+  } catch (error) {
+    console.error(error);
+    setAuthMessage(error.message, true);
+    return;
+  }
+
   usernameLabel.textContent = "Guest";
   clearEmailView();
   setAuthMessage("You are logged out.");
@@ -131,4 +174,16 @@ usernameInput.addEventListener("keydown", (event) => {
 scopeProbeResult.textContent =
   'Use this button to see whether the browser sends SessionID to "/other".';
 clearEmailView();
-syncSession();
+
+async function bootstrap() {
+  try {
+    await loadRuntimeConfig();
+  } catch (error) {
+    console.error(error);
+    renderRuntimeSummary();
+  }
+
+  await syncSession();
+}
+
+bootstrap();

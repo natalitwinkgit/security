@@ -29,7 +29,9 @@ const balancedModes = new Set([
 ]);
 const cookieSecurityMode = readArg("--cookie-security=", "secure");
 const cookiePath = readArg("--cookie-path=", "/api");
+const logoutMode = readArg("--logout-mode=", "synchronized");
 const validCookieSecurityModes = new Set(["scriptable", "httponly", "secure"]);
+const validLogoutModes = new Set(["client-only", "synchronized"]);
 
 if (!validCookieSecurityModes.has(cookieSecurityMode)) {
   console.error(
@@ -40,6 +42,13 @@ if (!validCookieSecurityModes.has(cookieSecurityMode)) {
 
 if (!cookiePath.startsWith("/")) {
   console.error(`[Auth] Unsupported cookie path "${cookiePath}". Use a path like "/" or "/api".`);
+  process.exit(1);
+}
+
+if (!validLogoutModes.has(logoutMode)) {
+  console.error(
+    `[Auth] Unsupported logout mode "${logoutMode}". Use "client-only" or "synchronized".`
+  );
   process.exit(1);
 }
 
@@ -99,6 +108,7 @@ console.log(
     "; "
   )})`
 );
+console.log(`[Auth] Logout mode: ${logoutMode}`);
 
 function parseCookies(cookieHeader = "") {
   return cookieHeader
@@ -201,6 +211,15 @@ app.get(["/", "/index.html"], (req, res) => {
 });
 
 app.use(express.static("public", { index: false }));
+
+app.get("/api/runtime", (req, res) => {
+  res.json({
+    cookiePath,
+    cookieSecurityMode,
+    clientCookieMutable: cookieSecurityMode === "scriptable",
+    logoutMode,
+  });
+});
 
 app.get("/login", (req, res) => {
   const username = String(req.query.username || "").trim().toLowerCase();
