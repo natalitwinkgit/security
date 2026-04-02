@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const express = require("express");
 const fs = require("fs");
+const https = require("https");
 const path = require("path");
 const cors = require("cors");
 
@@ -11,10 +12,17 @@ app.use(express.urlencoded({ extended: false }));
 const configPath = path.join(__dirname, "config.json");
 const versionPath = path.join(__dirname, "version.txt");
 const indexPath = path.join(__dirname, "public", "index.html");
+const tlsKeyPath = path.join(__dirname, "key.pem");
+const tlsCertPath = path.join(__dirname, "cert.pem");
 const trustedCdnOrigin = "http://localhost:7000";
 const reactMockUrl = `${trustedCdnOrigin}/react-mock.js`;
 const reactMockScriptPattern =
   /<script\s+src="http:\/\/localhost:7000\/react-mock\.js"[\s\S]*?<\/script>/m;
+const themeCssPattern = /<link rel="stylesheet" href="http:\/\/localhost:7000\/theme\.css" \/>/m;
+const logoImgPattern = /<img src="http:\/\/localhost:7000\/logo\.png" alt="logo" \/>/m;
+const bridgeCommentPattern = /\s*<!-- The Bridge -->/m;
+const partnerScriptPattern = /\s*<script src="http:\/\/localhost:4000\/support\.js"><\/script>/m;
+const weatherScriptPattern = /\s*<script src="http:\/\/localhost:5000\/weather\.js"><\/script>/m;
 
 function readArg(prefix, fallback) {
   const arg = process.argv.find((value) => value.startsWith(prefix));
@@ -36,11 +44,14 @@ const sessionTtlMs = Number.parseInt(readArg("--session-ttl-ms=", "0"), 10);
 const sameSiteMode = readArg("--same-site=", "off");
 const deleteMethod = readArg("--delete-method=", "get");
 const csrfMode = readArg("--csrf-mode=", "off");
+const transportMode = readArg("--transport=", "http");
+const httpsPort = Number.parseInt(readArg("--https-port=", "3443"), 10);
 const validCookieSecurityModes = new Set(["scriptable", "httponly", "secure"]);
 const validLogoutModes = new Set(["client-only", "synchronized"]);
 const validSameSiteModes = new Set(["off", "lax", "strict"]);
 const validDeleteMethods = new Set(["get", "post"]);
 const validCsrfModes = new Set(["off", "token"]);
+const validTransportModes = new Set(["http", "https"]);
 
 if (!validCookieSecurityModes.has(cookieSecurityMode)) {
   console.error(
@@ -78,6 +89,16 @@ if (!validDeleteMethods.has(deleteMethod)) {
 
 if (!validCsrfModes.has(csrfMode)) {
   console.error(`[Mail] Unsupported CSRF mode "${csrfMode}". Use "off" or "token".`);
+  process.exit(1);
+}
+
+if (!validTransportModes.has(transportMode)) {
+  console.error(`[Transport] Unsupported mode "${transportMode}". Use "http" or "https".`);
+  process.exit(1);
+}
+
+if (!Number.isFinite(httpsPort) || httpsPort <= 0) {
+  console.error(`[Transport] Unsupported HTTPS port "${httpsPort}". Use a positive integer.`);
   process.exit(1);
 }
 
@@ -146,6 +167,7 @@ console.log(`[Auth] Session TTL: ${sessionTtlMs > 0 ? `${sessionTtlMs} ms` : "di
 console.log(`[Auth] SameSite mode: ${sameSiteMode}`);
 console.log(`[Mail] Delete method: ${deleteMethod}`);
 console.log(`[Mail] CSRF mode: ${csrfMode}`);
+console.log(`[Transport] Mode: ${transportMode}`);
 
 function parseCookies(cookieHeader = "") {
   return cookieHeader
@@ -258,6 +280,16 @@ function getReactMockScriptTag() {
   return `<script src="${reactMockUrl}"></script>`;
 }
 
+function removeMixedContent(html) {
+  return html
+    .replace(themeCssPattern, "")
+    .replace(logoImgPattern, '<div style="font-size: 28px; font-weight: 700">SecureMail Pro</div>')
+    .replace(reactMockScriptPattern, "")
+    .replace(bridgeCommentPattern, "")
+    .replace(partnerScriptPattern, "")
+    .replace(weatherScriptPattern, "");
+}
+
 app.use((req, res, next) => {
   if (config.mode === "mode1") {
     return allowAllCors(req, res, next);
@@ -285,8 +317,9 @@ app.get(["/", "/index.html"], (req, res) => {
   const html = fs
     .readFileSync(indexPath, "utf-8")
     .replace(reactMockScriptPattern, getReactMockScriptTag());
+  const responseHtml = transportMode === "https" ? removeMixedContent(html) : html;
 
-  res.type("html").send(html);
+  res.type("html").send(responseHtml);
 });
 
 app.use(express.static("public", { index: false }));
@@ -467,6 +500,17 @@ app.get("/other", (req, res) => {
   });
 });
 
-app.listen(3000, () => {
-  console.log("GoodHost running on http://localhost:3000");
-});
+if (transportMode === "https") {
+  const tlsOptions = {
+    key: fs.readFileSync(tlsKeyPath),
+    cert: fs.readFileSync(tlsCertPath),
+  };
+
+  https.createServer(tlsOptions, app).listen(httpsPort, () => {
+    console.log(`Secure Server running on https://localhost:${httpsPort}`);
+  });
+} else {
+  app.listen(3000, () => {
+    console.log("GoodHost running on http://localhost:3000");
+  });
+}
